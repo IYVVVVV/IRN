@@ -5,7 +5,9 @@ import time
 
 from data_process import process_data, process_data_c
 from utils import MultiAcc, MultiAcc_C, RealAnswer, ScoreRank, InSet, InnerRight
-from sklearn import cross_validation, metrics
+#from sklearn import cross_validation, metrics
+from sklearn import metrics
+from sklearn.model_selection import train_test_split
 from model import IRN, IRN_C
 
 flags = tf.app.flags
@@ -22,12 +24,20 @@ flags.DEFINE_float("epsilon", 1e-8, "Epsilon value for Adam Optimizer.")
 #flags.DEFINE_float("init_std", 0.05, "weight initialization std [0.05]")
 flags.DEFINE_float("max_grad_norm", 20, "clip gradients to this norm [20]")
 flags.DEFINE_string("dataset", "pq2h", "pq/pql/wc/")
+flags.DEFINE_string("data_dir", "WC2014", "default data directory")
+flags.DEFINE_string("KB_file", "WC2014", "default knowledge base")
+flags.DEFINE_string("data_file", "WC-P1", "default data file")
+flags.DEFINE_integer("query_size", 0, "default maximum question length")
+flags.DEFINE_integer("path_size", 0, "default path length")
+flags.DEFINE_integer("nwords", 0, "default number of words")
+flags.DEFINE_integer("nrels", 0, "default number of relations")
+flags.DEFINE_integer("nents", 0, "default number of entities")
 flags.DEFINE_string("checkpoint_dir", "checkpoint", "checkpoint directory")
 flags.DEFINE_boolean("unseen",False,"True to hide 3 relations when training [False]")
 FLAGS = flags.FLAGS
 
-FLAGS.data_dir = "WC2014"
-FLAGS.KB_file = "WC2014"
+#FLAGS.data_dir = "WC2014"
+#FLAGS.KB_file = "WC2014"
 if FLAGS.dataset == 'wc1h':
     FLAGS.data_file = "WC-P1" #"WC-C/P1/P2/P"
 elif FLAGS.dataset == 'wc2h':
@@ -77,18 +87,20 @@ def main(_):
         FLAGS.path_size = len(P[0][0]) #5
     else:
         Q,A,P,S,Triples,FLAGS.query_size = process_data(KB_file, data_file, word2id, rel2id, ent2id, words, relations, entities)
-        FLAGS.path_size = len(P[0]) #5 or 7 or 
+        FLAGS.path_size = len(P[0]) #5 or 7 or
 
-    FLAGS.nhop = FLAGS.path_size / 2
+    FLAGS.nhop = FLAGS.path_size // 2 # 2 or 3
 
     print ("read data cost %f seconds" %(time.time()-start))
-    FLAGS.nwords = len(word2id) 
-    FLAGS.nrels = len(rel2id) 
+    FLAGS.nwords = len(word2id)
+    FLAGS.nrels = len(rel2id)
     FLAGS.nents = len(ent2id)
-    
-    trainQ, testQ, trainA, testA, trainP, testP, trainS, testS = cross_validation.train_test_split(Q, A, P, S, test_size=.1, random_state=123)
-    trainQ, validQ, trainA, validA, trainP, validP, trainS, validS = cross_validation.train_test_split(trainQ, trainA, trainP, trainS, test_size=.11, random_state=0)
-    
+
+    #trainQ, testQ, trainA, testA, trainP, testP, trainS, testS = cross_validation.train_test_split(Q, A, P, S, test_size=.1, random_state=123)
+    #trainQ, validQ, trainA, validA, trainP, validP, trainS, validS = cross_validation.train_test_split(trainQ, trainA, trainP, trainS, test_size=.11, random_state=0)
+    trainQ, testQ, trainA, testA, trainP, testP, trainS, testS = train_test_split(Q, A, P, S, test_size=.1, random_state=123)
+    trainQ, validQ, trainA, validA, trainP, validP, trainS, validS = train_test_split(trainQ, trainA, trainP, trainS, test_size=.11, random_state=0)
+
     # for UNSEEN relations (incomplete kb setting, change data_utils.py)
     if FLAGS.unseen:
         id_c=[]
@@ -96,24 +108,24 @@ def main(_):
             if trainP[idx][-4] == 1 or trainP[idx][-4]==2 or trainP[idx][-4]==3:
                 id_c.append(idx)
         trainQ = np.delete(trainQ,id_c,axis=0)
-        trainA = np.delete(trainA,id_c,axis=0) 
+        trainA = np.delete(trainA,id_c,axis=0)
         trainP = np.delete(trainP,id_c,axis=0)
-        trainS = np.delete(trainS,id_c,axis=0) 
-    
-    n_train = trainQ.shape[0]     
+        trainS = np.delete(trainS,id_c,axis=0)
+
+    n_train = trainQ.shape[0]
     n_test = testQ.shape[0]
     n_val = validQ.shape[0]
-    print("Training Size", n_train) 
-    print("Validation Size", n_val) 
-    print("Testing Size", n_test) 
-    
+    print("Training Size", n_train)
+    print("Validation Size", n_val)
+    print("Testing Size", n_test)
+
 
     #
     #other data and some flags
     #
     id2word = dict(zip(word2id.values(), word2id.keys()))
-    id2rel = dict(zip(rel2id.values(), rel2id.keys())) #{0: '<end>', 1: 'cause_of_death', 2: 'gender', 3: 'profession', 4: 'institution', 5: 'religion', 6: 'parents', 7: 'location', 8: 'place_of_birth', 9: 'nationality', 10: 'place_of_death', 11: 'spouse', 12: 'children', 13: 'ethnicity'} 
-    
+    id2rel = dict(zip(rel2id.values(), rel2id.keys())) #{0: '<end>', 1: 'cause_of_death', 2: 'gender', 3: 'profession', 4: 'institution', 5: 'religion', 6: 'parents', 7: 'location', 8: 'place_of_birth', 9: 'nationality', 10: 'place_of_death', 11: 'spouse', 12: 'children', 13: 'ethnicity'}
+
     train_labels = np.argmax(trainA, axis=1)
     test_labels = np.argmax(testA, axis=1)
     valid_labels = np.argmax(validA, axis=1)
@@ -123,24 +135,24 @@ def main(_):
 
     #batch_id
     #batches = [(start, end) for start, end in batches] abandom last few examples
-    batches = zip(range(0, n_train-FLAGS.batch_size, FLAGS.batch_size), range(FLAGS.batch_size, n_train, FLAGS.batch_size))
+    batches = list(zip(range(0, n_train-FLAGS.batch_size, FLAGS.batch_size), range(FLAGS.batch_size, n_train, FLAGS.batch_size)))
 
     r = np.arange(n_train) # instance idx to be shuffled
-    l = n_train / FLAGS.batch_size * FLAGS.batch_size #total instances used in training 
+    l = n_train / FLAGS.batch_size * FLAGS.batch_size #total instances used in training
 
     with tf.Session() as sess:
         if not FLAGS.data_file == "WC-C":
             model = IRN(FLAGS,sess)
 
             print("KB Size", Triples.shape[0]) #144
-            pre_batches = zip(range(0, Triples.shape[0]-FLAGS.batch_size, FLAGS.batch_size), range(FLAGS.batch_size, Triples.shape[0], FLAGS.batch_size))
+            pre_batches = list(zip(range(0, Triples.shape[0]-FLAGS.batch_size, FLAGS.batch_size), range(FLAGS.batch_size, Triples.shape[0], FLAGS.batch_size)))
 
             pre_val_preds = model.predict(Triples, validQ, validP)
             pre_test_preds = model.predict(Triples, testQ, testP)
             best_val_epoch = -1
             best_val_acc = MultiAcc(validP,pre_val_preds,FLAGS.path_size)
             best_val_true_acc = InSet(validP,validS,pre_val_preds)
-             
+
             for t in range(1,FLAGS.nepoch + 1):
                 start = time.time()
                 np.random.shuffle(batches)
@@ -150,7 +162,7 @@ def main(_):
                     for s,e in pre_batches:
                         pre_total_cost += model.batch_pretrain(Triples[s:e],trainQ[0:FLAGS.batch_size],trainA[0:FLAGS.batch_size],np.argmax(trainA[0:FLAGS.batch_size], axis=1),trainP[0:FLAGS.batch_size])
 
-                total_cost = 0.0                
+                total_cost = 0.0
                 for s,e in batches:
                     total_cost += model.batch_fit(Triples[s:e],trainQ[s:e],trainA[s:e],np.argmax(trainA[s:e], axis=1),trainP[s:e])
 
@@ -175,7 +187,7 @@ def main(_):
                     print('Total Cost:', total_cost)
                     print('Train Accuracy:', train_true_acc)
                     print('Validation Accuracy:', val_true_acc)
-                    print('Best Validation epoch & Acc:', best_val_epoch, best_val_true_acc)                  
+                    print('Best Validation epoch & Acc:', best_val_epoch, best_val_true_acc)
                     print('-----------------------')
 
                     '''
@@ -195,7 +207,7 @@ def main(_):
             model = IRN_C(FLAGS,sess)
 
             print("KB Size", Triples.shape[0]) #144
-            pre_batches = zip(range(0, Triples.shape[0]-FLAGS.batch_size, FLAGS.batch_size), range(FLAGS.batch_size, Triples.shape[0], FLAGS.batch_size))
+            pre_batches = list(zip(range(0, Triples.shape[0]-FLAGS.batch_size, FLAGS.batch_size), range(FLAGS.batch_size, Triples.shape[0], FLAGS.batch_size)))
 
             pre_val_preds = model.predict(Triples, validQ, validP)
             pre_test_preds = model.predict(Triples, testQ, testP)
@@ -203,7 +215,7 @@ def main(_):
             best_val_acc = MultiAcc_C(validP,pre_val_preds)
             best_val_true_acc = InSet(validP,validS,pre_val_preds)
 
-             
+
             for t in range(1,FLAGS.nepoch + 1):
                 start = time.time()
                 np.random.shuffle(batches)
@@ -213,7 +225,7 @@ def main(_):
                     for s,e in pre_batches:
                         pre_total_cost += model.batch_pretrain(Triples[s:e],trainQ[0:FLAGS.batch_size],trainA[0:FLAGS.batch_size],np.argmax(trainA[0:FLAGS.batch_size], axis=1),trainP[0:FLAGS.batch_size])
 
-                total_cost = 0.0                
+                total_cost = 0.0
                 for s,e in batches:
                     total_cost += model.batch_fit(Triples[s:e],trainQ[s:e],trainA[s:e],np.argmax(trainA[s:e], axis=1),trainP[s:e])
 
@@ -239,7 +251,7 @@ def main(_):
                     print('Total Cost:', total_cost)
                     print('Train Accuracy:', train_true_acc)
                     print('Validation Accuracy:', val_true_acc)
-                    print('Best Validation epoch & Acc:', best_val_epoch, best_val_true_acc)                  
+                    print('Best Validation epoch & Acc:', best_val_epoch, best_val_true_acc)
                     print('-----------------------')
 
 

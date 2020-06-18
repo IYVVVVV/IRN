@@ -10,7 +10,7 @@ class IRN(object):
         self._data_file = config.data_file
         self._margin = 4
         self._batch_size = config.batch_size
-        self._vocab_size = config.nwords 
+        self._vocab_size = config.nwords
         self._rel_size = config.nrels
         self._ent_size = config.nents
         self._sentence_size = config.query_size
@@ -46,9 +46,9 @@ class IRN(object):
                 KB_nil_grads_and_vars.append((zero_nil_slot(g), v))
             else:
                 KB_nil_grads_and_vars.append((g, v))
-        print "KB_grads_and_vars"
+        print ('KB_grads_and_vars: ')
         for g,v in KB_nil_grads_and_vars:
-            print g, v.name   
+            print (g, v.name)
         KB_train_op = self._opt.apply_gradients(KB_grads_and_vars, name="KB_train_op")
 
 
@@ -59,7 +59,7 @@ class IRN(object):
 
         QA_params = [self.QE,self.Mrq,self.Mrs]
         QA_grads_and_vars = self._opt.compute_gradients(QA_loss_op,QA_params)
-        
+
         QA_grads_and_vars = [(tf.clip_by_norm(g, self._max_grad_norm), v) for g,v in QA_grads_and_vars if g is not None ]
         QA_grads_and_vars = [(add_gradient_noise(g), v) for g,v in QA_grads_and_vars]
         QA_nil_grads_and_vars = []
@@ -68,10 +68,10 @@ class IRN(object):
                 QA_nil_grads_and_vars.append((zero_nil_slot(g), v))
             else:
                 QA_nil_grads_and_vars.append((g, v))
-               
-        print "QA_grads_and_vars"
+
+        print ('QA_grads_and_vars: ')
         for g,v in QA_nil_grads_and_vars:
-            print g, v.name
+            print (g, v.name)
         #grads_and_vars = [(tf.Print(g, [v.name,str(g.get_shape()),g], summarize=1e1/2), v) for g, v in grads_and_vars]
 
         QA_train_op = self._opt.apply_gradients(QA_nil_grads_and_vars, name="QA_train_op")
@@ -107,7 +107,7 @@ class IRN(object):
 
     def _build_vars(self):
         with tf.variable_scope(self._name):
-            
+
             nil_word_slot = tf.zeros([1, self._embedding_size])
             nil_rel_slot = tf.zeros([1, self._embedding_size])
             E = tf.concat(axis=0, values=[ nil_word_slot, self._init([self._ent_size-1, self._embedding_size]) ])
@@ -164,15 +164,15 @@ class IRN(object):
                 gate = tf.matmul(q, tf.matmul(self.RE, self.Mrq), transpose_b = True) + tf.matmul(state, tf.matmul(self.RE, self.Mrs), transpose_b = True) #(b,e)*(e,14) ->(b,14)
                 rel_logits = gate
                 r_index = tf.argmax(rel_logits,1)  #(b,)
-                
+
                 gate = tf.nn.softmax(gate) #(b,r)
-                
-                #gumble-softmax: gate is unnormalized logits, 
+
+                #gumble-softmax: gate is unnormalized logits,
                 #u = tf.random_uniform(shape=tf.shape(gate),minval=0,maxval=1.0) #(b,r)
                 #g = -tf.log(-tf.log(u+1e-20)+1e-20)
                 #tau = tf.nn.relu(tf.matmul(gate,self.GT))+1e-8 #(batch,1)
                 #gate = tf.nn.softmax((gate) / tau) #(batch,v)
-                
+
 
                 real_rel_onehot = tf.one_hot(self._paths[:,step+1], self._rel_size, on_value=1.0, off_value=0.0, axis=-1) #(b,rel_size)
                 predict_rel_onehot = tf.one_hot(r_index, self._rel_size, on_value=1.0, off_value=0.0, axis=-1)
@@ -201,12 +201,12 @@ class IRN(object):
                 real_ans_onehot = tf.one_hot(self._paths[:,step+2], self._ent_size, on_value=1.0, off_value=0.0, axis=-1) #(b,rel_size)
 
 
-                
+
 
                 loss += tf.reshape(tf.nn.softmax_cross_entropy_with_logits(logits=ans, labels=real_ans_onehot),[-1,1]) #(b,1)
 
             #FOR IRN-weak
-            #loss += tf.reshape(tf.nn.softmax_cross_entropy_with_logits(logits=ans, labels=tf.cast(self._answers, tf.float32)),[-1,1])     
+            #loss += tf.reshape(tf.nn.softmax_cross_entropy_with_logits(logits=ans, labels=tf.cast(self._answers, tf.float32)),[-1,1])
 
             return loss, p
 
@@ -233,7 +233,7 @@ class IRN(object):
             loss: floating-point number, the loss computed for the batch
         """
         nexample = KBs.shape[0]
-        keys = np.repeat(np.reshape(np.arange(self._rel_size),[1,-1]),nexample,axis=0) 
+        keys = np.repeat(np.reshape(np.arange(self._rel_size),[1,-1]),nexample,axis=0)
         pad = np.random.randint(low = 0, high = self._ent_size, size = nexample)
         ones = np.ones(nexample)
         zeros = np.zeros(nexample)
@@ -255,7 +255,7 @@ class IRN(object):
             loss: floating-point number, the loss computed for the batch
         """
         nexample = queries.shape[0]
-        keys = np.repeat(np.reshape(np.arange(self._rel_size),[1,-1]),nexample,axis=0) 
+        keys = np.repeat(np.reshape(np.arange(self._rel_size),[1,-1]),nexample,axis=0)
         pad = np.arange(nexample)
         ones = np.ones(nexample)
         zeros = np.zeros(nexample)
@@ -277,7 +277,7 @@ class IRN(object):
             answers: id (None, 1)  ,predict_op = max(1, [None,ent_size])
         """
         nexample = queries.shape[0]
-        keys = np.repeat(np.reshape(np.arange(self._rel_size),[1,-1]),nexample,axis=0) 
+        keys = np.repeat(np.reshape(np.arange(self._rel_size),[1,-1]),nexample,axis=0)
         pad = np.arange(nexample)
         ones = np.ones(nexample)
         zeros = np.zeros(nexample)
@@ -304,7 +304,7 @@ class IRN_C(object):
         self._data_file = config.data_file
         self._margin = 2
         self._batch_size = config.batch_size
-        self._vocab_size = config.nwords 
+        self._vocab_size = config.nwords
         self._rel_size = config.nrels
         self._ent_size = config.nents
         self._sentence_size = config.query_size
@@ -312,7 +312,7 @@ class IRN_C(object):
         self._path_size = config.path_size
         self._memory_size = config.nrels
 
-        self._hops = config.nhop 
+        self._hops = config.nhop
         self._max_grad_norm = config.max_grad_norm
         self._init = tf.contrib.layers.xavier_initializer()
         #self._init = tf.random_normal_initializer(stddev=config.init_std)
@@ -340,9 +340,9 @@ class IRN_C(object):
                 KB_nil_grads_and_vars.append((zero_nil_slot(g), v))
             else:
                 KB_nil_grads_and_vars.append((g, v))
-        print "KB_grads_and_vars"
+        print ('KB_grads_and_vars: ')
         for g,v in KB_nil_grads_and_vars:
-            print g, v.name   
+            print (g, v.name)
         KB_train_op = self._opt.apply_gradients(KB_grads_and_vars, name="KB_train_op")
         KBE_norm_op = tf.nn.l2_normalize(self.EE,1)
         KBR_norm_op = tf.nn.l2_normalize(self.RE,1)
@@ -350,12 +350,12 @@ class IRN_C(object):
 
         #cross entropy as loss for QA:
         batch_loss_1, p_1, ans_1 = self._inference(self._paths[:,0,:])
-        batch_loss_2, p_2, ans_2 = self._inference(self._paths[:,1,:]) 
+        batch_loss_2, p_2, ans_2 = self._inference(self._paths[:,1,:])
         QA_loss_op = tf.reduce_sum(batch_loss_1+batch_loss_2, name="QA_loss_op")
 
         # gradient pipeline, seem not affect much
         QA_grads_and_vars = self._opt.compute_gradients(QA_loss_op)
-        
+
         QA_grads_and_vars = [(tf.clip_by_norm(g, self._max_grad_norm), v) for g,v in QA_grads_and_vars if g is not None]
 
         QA_grads_and_vars = [(add_gradient_noise(g), v) for g,v in QA_grads_and_vars]
@@ -365,10 +365,10 @@ class IRN_C(object):
                 QA_nil_grads_and_vars.append((zero_nil_slot(g), v))
             else:
                 QA_nil_grads_and_vars.append((g, v))
-               
-        print "QA_grads_and_vars"
+
+        print ('QA_grads_and_vars: ')
         for g,v in QA_nil_grads_and_vars:
-            print g, v.name
+            print (g, v.name)
         #grads_and_vars = [(tf.Print(g, [v.name,str(g.get_shape()),g], summarize=1e1/2), v) for g, v in grads_and_vars]
 
         QA_train_op = self._opt.apply_gradients(QA_nil_grads_and_vars, name="QA_train_op")
@@ -409,7 +409,7 @@ class IRN_C(object):
 
     def _build_vars(self):
         with tf.variable_scope(self._name):
-            
+
             nil_word_slot = tf.zeros([1, self._embedding_size])
             nil_rel_slot = tf.zeros([1, self._embedding_size])
             E = tf.concat(axis=0, values=[ nil_word_slot, self._init([self._ent_size-1, self._embedding_size]) ])
@@ -469,8 +469,8 @@ class IRN_C(object):
                 rel_logits = gate
                 r_index = tf.cast(tf.argmax(rel_logits,1),tf.int32)  #(b,)
                 gate = tf.nn.softmax(gate)
-                
-                #gumble-softmax: gate is unnormalized logits, 
+
+                #gumble-softmax: gate is unnormalized logits,
                 #u = tf.random_uniform(shape=tf.shape(gate),minval=0,maxval=1.0) #(b,r)
                 #g = -tf.log(-tf.log(u+1e-20)+1e-20)
                 #tau = tf.nn.relu(tf.matmul(gate,self.GT))+1e-8 #(batch,1)
@@ -489,9 +489,9 @@ class IRN_C(object):
 
                 state = state + tf.matmul(gate, tf.matmul(self.RE, self.Mrs))
                 #state = tf.nn.l2_normalize(state,1)
-    
+
                 loss += tf.reshape(tf.nn.softmax_cross_entropy_with_logits(logits=rel_logits, labels=real_rel_onehot),[-1,1]) #(b,1)
-                
+
                 #correct wrong ans
                 '''
                 train_q = q - tf.matmul(tf.nn.embedding_lookup(self.RE, _paths[:,2*hop+1]), self.Mrq)
@@ -500,7 +500,7 @@ class IRN_C(object):
                 '''
 
                 q = q - tf.matmul(gate,tf.matmul(self.RE, self.Mrq))
-                
+
 
                 value = tf.matmul(state,self.Mse)
                 ans = tf.matmul(value, self.EE, transpose_b=True) #(b,ent)
@@ -513,7 +513,7 @@ class IRN_C(object):
 
                 loss += tf.reshape(tf.nn.softmax_cross_entropy_with_logits(logits=ans, labels=real_ans_onehot),[-1,1]) #(b,1)
 
-            #loss += tf.reshape(tf.nn.softmax_cross_entropy_with_logits(logits=ans, labels=tf.cast(self._answers, tf.float32)),[-1,1])     
+            #loss += tf.reshape(tf.nn.softmax_cross_entropy_with_logits(logits=ans, labels=tf.cast(self._answers, tf.float32)),[-1,1])
 
             return loss, p, ans
 
@@ -530,7 +530,7 @@ class IRN_C(object):
             loss: floating-point number, the loss computed for the batch
         """
         nexample = KBs.shape[0]
-        keys = np.repeat(np.reshape(np.arange(self._rel_size),[1,-1]),nexample,axis=0) 
+        keys = np.repeat(np.reshape(np.arange(self._rel_size),[1,-1]),nexample,axis=0)
         pad = np.random.randint(low = 0, high = self._ent_size, size = nexample)
         ones = np.ones(nexample)
         zeros = np.zeros(nexample)
@@ -551,7 +551,7 @@ class IRN_C(object):
             loss: floating-point number, the loss computed for the batch
         """
         nexample = queries.shape[0]
-        keys = np.repeat(np.reshape(np.arange(self._rel_size),[1,-1]),nexample,axis=0) 
+        keys = np.repeat(np.reshape(np.arange(self._rel_size),[1,-1]),nexample,axis=0)
         pad = np.arange(nexample)
         ones = np.ones(nexample)
         zeros = np.zeros(nexample)
@@ -570,7 +570,7 @@ class IRN_C(object):
             answers: id (None, 1)  ,predict_op = max(1, [None,ent_size])
         """
         nexample = queries.shape[0]
-        keys = np.repeat(np.reshape(np.arange(self._rel_size),[1,-1]),nexample,axis=0) 
+        keys = np.repeat(np.reshape(np.arange(self._rel_size),[1,-1]),nexample,axis=0)
         pad = np.arange(nexample)
         ones = np.ones(nexample)
         zeros = np.zeros(nexample)

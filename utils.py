@@ -3,7 +3,8 @@ import math
 import random
 import numpy as np
 import tensorflow as tf
-from sklearn import cross_validation, metrics
+from sklearn import metrics
+# from sklearn import cross_validation # old version
 
 def norm(matrix):
     n = tf.sqrt(tf.reduce_sum(matrix*matrix,1))
@@ -40,7 +41,7 @@ def position_encoding(sentence_size, embedding_size):
     le = embedding_size+1
     for i in range(1, le):
         for j in range(1, ls):
-            encoding[i-1, j-1] = (i - (le-1)/2) * (j - (ls-1)/2) 
+            encoding[i-1, j-1] = (i - (le-1)/2) * (j - (ls-1)/2)
     encoding = (1 + 4 * encoding / embedding_size / sentence_size) / 2
     return np.transpose(encoding)
 
@@ -103,7 +104,7 @@ def MultiAcc(labels,preds,length):
         while(labels[j,k]==0):
             k -= 2
         if(labels[j,k]==preds[j,k]):
-            correct += 1.0   #final answer accuracy 
+            correct += 1.0   #final answer accuracy
     Acc.append(round( correct/batch_size ,3))
     return Acc
 
@@ -134,7 +135,7 @@ def InSet(labels,anset,preds):
     #preds is path-list
     #labels is path-labels
     right = 0.0
-    for i in xrange(len(anset)):
+    for i in range(len(anset)):
         if type(preds[i]) is np.int64:
             ans_pred = preds[i]
         else:

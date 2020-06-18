@@ -25,24 +25,28 @@ def process_data_c(KB_file, data_file, word2id, rel2id, ent2id, words, relations
 
     for r in relations:
         # same r_id in rel2id and word2id
-        if not rel2id.has_key(r):
+        #if not rel2id.has_key(r):
+        if r not in rel2id:
             rel2id[r] = len(rel2id)
-        if not word2id.has_key(r):
+        #if not word2id.has_key(r):
+        if r not in word2id:
             word2id[r] = len(word2id)
     for e in entities:
-        if not ent2id.has_key(e):
+        #if not ent2id.has_key(e):
+        if e not in ent2id:
             ent2id[e] = len(ent2id)
     for word in words:
-        if not word2id.has_key(word):
+        #if not word2id.has_key(word):
+        if word not in word2id:
             word2id[word] = len(word2id)
-    
-    print ('here are %d words in word2id(vocab)' %len(word2id))  
-    print ('here are %d relations in rel2id(rel_vocab)' %len(rel2id)) 
-    print ('here are %d entities in ent2id(ent_vocab)' %len(ent2id)) 
+
+    print ('here are %d words in word2id(vocab)' %len(word2id))
+    print ('here are %d relations in rel2id(rel_vocab)' %len(rel2id))
+    print ('here are %d entities in ent2id(ent_vocab)' %len(ent2id))
 
     Triples, KBs, tails_size = get_KB(KB_file,ent2id,rel2id)
 
-    print "#records or Triples", len(np.nonzero(KBs)[0])
+    print ('#records or Triples' %len(np.nonzero(KBs)[0]))
 
 
 
@@ -77,7 +81,7 @@ def process_data_c(KB_file, data_file, word2id, rel2id, ent2id, words, relations
             p.append([ent2id[subpath[0]], rel2id[subpath[1]], ent2id[subpath[2]],rel2id[subpath[3]],ent2id[subpath[4]]])
         P.append(p)  #N*2*3
         PP.append(path)
-        
+
         anset = answerset.split('/')
         anset = anset[:-1]
         ass=[]
@@ -102,15 +106,19 @@ def process_data(KB_file, data_file, word2id, rel2id, ent2id, words, relations, 
 
     for r in relations:
         # same r_id in rel2id and word2id
-        if not rel2id.has_key(r):
+        #if not rel2id.has_key(r):
+        if r not in rel2id:
             rel2id[r] = len(rel2id)
-        if not word2id.has_key(r):
+        #if not word2id.has_key(r):
+        if r not in word2id:
             word2id[r] = len(word2id)
     for e in entities:
-        if not ent2id.has_key(e):
+        #if not ent2id.has_key(e):
+        if e not in ent2id:
             ent2id[e] = len(ent2id)
     for word in words:
-        if not word2id.has_key(word):
+        #if not word2id.has_key(word):
+        if word not in word2id:
             word2id[word] = len(word2id)
 
     print ('here are %d words in word2id(vocab)' %len(word2id))  #75080
@@ -119,7 +127,7 @@ def process_data(KB_file, data_file, word2id, rel2id, ent2id, words, relations, 
 
     Triples, KBs,tails_size = get_KB(KB_file,ent2id,rel2id)
 
-    print "#records or Triples", len(np.nonzero(KBs)[0])
+    print ('#records or Triples: %d' %len(np.nonzero(KBs)[0]))
 
 
 
@@ -148,7 +156,7 @@ def process_data(KB_file, data_file, word2id, rel2id, ent2id, words, relations, 
         AA.append(ent2id[answer])
 
         #p = [ ent2id[path[0]], rel2id[path[1]], ent2id[path[2]], rel2id[path[3]], ent2id[path[4]] ]
-        
+
         p=[]
         for i in range(len(path)):
             if i % 2 == 0:
@@ -161,13 +169,13 @@ def process_data(KB_file, data_file, word2id, rel2id, ent2id, words, relations, 
                # r = np.zeros(len(relations))
                # r[rel2id[path[i]]] =1
                 p.append(r)
-        
+
         #p.append(rel2id[path[3]])
         #p.append(ent2id[path[4]])
         P.append(p)
         PP.append(path)
-        
-        
+
+
         anset = answerset.split('/')
         anset = anset[:-1]
         ass=[]
@@ -229,7 +237,7 @@ def get_KB(KB_file,ent2id,rel2id):
         KBmatrix[h*nrels+r,lenlist] = t
         tails[h*nrels+r]+=1
 
-    print "delete triples:", b
+    print ('delete triples: %d' %b)
 
     return np.array(Triples), KBmatrix[:,:np.max(tails)], np.max(tails)
 
@@ -239,7 +247,7 @@ def read_data(data_file, words):
     # q+'\t'+ans+'\t'+p+'\t'+ansset+'\t'+c+'\t'+sub+'\n'
     # question \t ans(ans1/ans2/) \t e1#r1#e2#r2#e3#<end>#e3
     # question \t  ans  \t  e1#r1#e2#r2#e3#<end>#e3  \t   ans1/ans2/   \t   e1#r1#e2///e2#r2#e3#///s#r#t///s#r#t
-    
+
     if os.path.isfile(data_file):
         with open(data_file) as f:
             lines = f.readlines()
@@ -253,7 +261,7 @@ def read_data(data_file, words):
     for line in lines:
         line = line.strip().split('\t')
         qlist = line[0].strip().split()
-        k = line[1].find('(') 
+        k = line[1].find('(')
         if not k == -1:
             if line[1][k-1] == '_':
                 k += (line[1][k+1:-1].find('(') + 1)
