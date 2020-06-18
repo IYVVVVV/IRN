@@ -5,7 +5,9 @@ import time
 
 from data_process import process_data, process_data_c
 from utils import MultiAcc, MultiAcc_C, RealAnswer, ScoreRank, InSet, InnerRight
-from sklearn import cross_validation, metrics
+#from sklearn import cross_validation, metrics
+from sklearn import metrics
+from sklearn.model_selection import train_test_split
 from model import IRN, IRN_C
 
 flags = tf.app.flags
@@ -22,6 +24,14 @@ flags.DEFINE_float("epsilon", 1e-8, "Epsilon value for Adam Optimizer.")
 #flags.DEFINE_float("init_std", 0.05, "weight initialization std [0.05]")
 flags.DEFINE_float("max_grad_norm", 20, "clip gradients to this norm [20]")
 flags.DEFINE_string("dataset", "pq", "pq2h/pq3h/pql2h/pql3h/wc/")
+flags.DEFINE_string("data_dir", "data/WC2014", "default data directory")
+flags.DEFINE_string("KB_file", "WC2014", "default knowledge base")
+flags.DEFINE_string("data_file", "WC-P1", "default data file")
+flags.DEFINE_integer("query_size", 0, "default maximum question length")
+flags.DEFINE_integer("path_size", 0, "default path length")
+flags.DEFINE_integer("nwords", 0, "default number of words")
+flags.DEFINE_integer("nrels", 0, "default number of relations")
+flags.DEFINE_integer("nents", 0, "default number od entities")
 flags.DEFINE_string("checkpoint_dir", "checkpoint", "checkpoint directory")
 flags.DEFINE_boolean("unseen",False,"True to hide 3 relations when training [False]")
 flags.DEFINE_boolean("show_case_only",False,"True to show case")
@@ -29,8 +39,8 @@ flags.DEFINE_integer("show_case_no",10, "show the case in the test file")
 
 FLAGS = flags.FLAGS
 
-FLAGS.data_dir = "data/WC2014"
-FLAGS.KB_file = "WC2014"
+#FLAGS.data_dir = "data/WC2014"
+#FLAGS.KB_file = "WC2014"
 if FLAGS.dataset == 'wc1h':
     FLAGS.data_file = "WC-P1" #"WC-C/P1/P2/P"
 elif FLAGS.dataset == 'wc2h':
@@ -80,17 +90,17 @@ def main(_):
         FLAGS.path_size = len(P[0][0]) #5
     else:
         Q,A,P,S,Triples,FLAGS.query_size = process_data(KB_file, data_file, word2id, rel2id, ent2id, words, relations, entities)
-        FLAGS.path_size = len(P[0]) #5 or 7 or 
+        FLAGS.path_size = len(P[0]) #5 or 7 or
 
-    FLAGS.nhop = FLAGS.path_size / 2
+    FLAGS.nhop = FLAGS.path_size // 2 # must be an integer
 
     print ("read data cost %f seconds" %(time.time()-start))
-    FLAGS.nwords = len(word2id) 
-    FLAGS.nrels = len(rel2id) 
+    FLAGS.nwords = len(word2id)
+    FLAGS.nrels = len(rel2id)
     FLAGS.nents = len(ent2id)
-    
-    trainQ, testQ, trainA, testA, trainP, testP, trainS, testS = cross_validation.train_test_split(Q, A, P, S, test_size=.1, random_state=123)
-    
+
+    trainQ, testQ, trainA, testA, trainP, testP, trainS, testS = train_test_split(Q, A, P, S, test_size=.1, random_state=123)
+
     # for UNSEEN relations (incomplete kb setting, change data_utils.py)
     if FLAGS.unseen:
         id_c=[]
@@ -98,17 +108,17 @@ def main(_):
             if trainP[idx][-4] == 1 or trainP[idx][-4]==2 or trainP[idx][-4]==3:
                 id_c.append(idx)
         trainQ = np.delete(trainQ,id_c,axis=0)
-        trainA = np.delete(trainA,id_c,axis=0) 
+        trainA = np.delete(trainA,id_c,axis=0)
         trainP = np.delete(trainP,id_c,axis=0)
-        trainS = np.delete(trainS,id_c,axis=0) 
-    
+        trainS = np.delete(trainS,id_c,axis=0)
+
 
     #
     #other data and some flags
     #
     id2word = dict(zip(word2id.values(), word2id.keys()))
     id2ent = dict(zip(ent2id.values(), ent2id.keys()))
-    id2rel = dict(zip(rel2id.values(), rel2id.keys())) #{0: '<end>', 1: 'cause_of_death', 2: 'gender', 3: 'profession', 4: 'institution', 5: 'religion', 6: 'parents', 7: 'location', 8: 'place_of_birth', 9: 'nationality', 10: 'place_of_death', 11: 'spouse', 12: 'children', 13: 'ethnicity'} 
+    id2rel = dict(zip(rel2id.values(), rel2id.keys())) #{0: '<end>', 1: 'cause_of_death', 2: 'gender', 3: 'profession', 4: 'institution', 5: 'religion', 6: 'parents', 7: 'location', 8: 'place_of_birth', 9: 'nationality', 10: 'place_of_death', 11: 'spouse', 12: 'children', 13: 'ethnicity'}
 
     test_labels = np.argmax(testA, axis=1)
 
@@ -120,7 +130,7 @@ def main(_):
             model = IRN(FLAGS,sess)
         elif FLAGS.data_file == "WC-C":
             model = IRN_C(FLAGS,sess)
-        
+
         model.load()
 
         test_preds = model.predict(Triples,testQ, testP)
@@ -146,7 +156,7 @@ def main(_):
         if FLAGS.show_case_only:
             print('-----------------------')
             print('test input:',input_q)
-            print('test output:',output)                   
+            print('test output:',output)
             print('-----------------------')
             return
 
@@ -154,7 +164,7 @@ def main(_):
         print('-----------------------')
         print('Test Data',data_file)
         print('Test Accuracy:', test_true_acc)
-        print('Test Accuracy for whole Path:', test_acc)                    
+        print('Test Accuracy for whole Path:', test_acc)
         print('-----------------------')
 
 
